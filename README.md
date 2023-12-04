@@ -1,6 +1,6 @@
 ## 天气插件
 ---
-[瀚文助手](https://github.com/Huiyicc/HelloWord_HY)的天气插件
+[瀚文扩展](https://github.com/Huiyicc/HelloWord_HY)的天气插件
 
 ## 构建方法
 
