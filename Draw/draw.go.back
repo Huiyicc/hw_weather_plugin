@@ -1,0 +1,235 @@
+package Draw
+
+import (
+	"bytes"
+	_ "embed"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"github.com/fogleman/gg"
+	"github.com/golang/freetype"
+	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/font"
+	"golang.org/x/image/math/fixed"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
+	"image/png"
+	"strconv"
+)
+
+//go:embed static/SourceHanSansCNMedium.ttf
+var sourceHanSans []byte
+
+//go:embed static/qweather-icons.ttf
+var qweatherIconsImage []byte
+
+//go:embed static/icon-table
+var icon_table []byte
+
+//go:embed static/temp.png
+var tempPNG []byte
+
+var (
+	rFont          *truetype.Font
+	qweatherFont   *truetype.Font
+	qweatherTables map[string]int
+)
+
+//type DrawTools struct {
+//	font          *truetype.Font
+//	qweatherIcons *truetype.Font
+//}
+
+//func NewDrawTools() (*DrawTools, error) {
+//	r := &DrawTools{}
+//	var err error
+//	if rFont == nil || qweatherFont == nil {
+//		if err = initFont(); err != nil {
+//			return nil, err
+//		}
+//	}
+//	r.font = rFont
+//	r.qweatherIcons = qweatherFont
+//	return r, nil
+//}
+
+//func (t *DrawTools) secondUnixToString(time int64) string {
+//	if time < 60 {
+//		//小于60秒
+//		return fmt.Sprintf("%d秒", time)
+//	} else if time < 3600 {
+//		//小于1小时(3600秒)
+//		return fmt.Sprintf("%d分钟", int(time/60))
+//	} else if time < 86400 {
+//		//小于1天 (86400秒)
+//		return fmt.Sprintf("%d小时", int(time/3600))
+//	} else {
+//		//大于1天
+//		return fmt.Sprintf("%d天", int(time/86400))
+//	}
+//}
+
+type Canvas struct {
+	*Context
+}
+
+type Position struct {
+	Width, Height, Top, Left int
+}
+
+func GetRGBA(r, g, b, a uint8) color.RGBA {
+	return color.RGBA{R: r, G: g, B: b, A: a}
+}
+
+func initFont() error {
+	var err error
+	//载入字体数据
+	rFont, err = freetype.ParseFont(sourceHanSans)
+	if err != nil {
+		return err
+	}
+	qweatherFont, err = truetype.Parse(qweatherIconsImage)
+	if err != nil {
+		return err
+	}
+	qweatherTables = make(map[string]int)
+	var tabs []struct {
+		Key   string `json:"key"`
+		Value int    `json:"value"`
+	}
+	json.Unmarshal(icon_table, &tabs)
+	for _, tab := range tabs {
+		qweatherTables[tab.Key] = tab.Value
+	}
+	return nil
+}
+
+// 使用一张图片生成画布
+func NewByImgData(data []byte) (*Canvas, error) {
+	if rFont == nil || qweatherFont == nil {
+		if err := initFont(); err != nil {
+			return nil, err
+		}
+	}
+	img, _, err := GetImageByData(data)
+	if err != nil {
+		return nil, err
+	}
+
+	r := Canvas{}
+	r.RGBA = image.NewRGBA(img.Bounds())
+	draw.Draw(r, img.Bounds(), img, image.Pt(0, 0), draw.Over)
+	return &r, nil
+}
+
+// 创建一张图片
+func NewImg(width, height int) (*Canvas, error) {
+	dc := gg.NewContext(512, 512)
+	return NewByImgData(tempPNG)
+}
+
+// 嵌入天气图标
+func (cvs *Canvas) DrawWeatherIcon(index string, size int, rgba color.Color, left, top int) (err error) {
+	face := truetype.NewFace(qweatherFont, &truetype.Options{
+		Size: float64(size),
+		DPI:  70,
+	})
+	f := font.Drawer{
+		Dst:  cvs,
+		Src:  image.NewUniform(rgba),
+		Face: face,
+		Dot:  fixed.Point26_6{X: fixed.I(left), Y: fixed.I(top)},
+	}
+	character := rune(0xf101)
+	f.DrawString(string(character))
+	return
+}
+
+var picMap map[string]string
+
+// 获取图片
+func GetImageByData(data []byte) (img image.Image, suffix string, err error) {
+	r := bytes.NewReader(data)
+	suffix = judgeType(data)
+	switch suffix {
+	case "png":
+		img, err = png.Decode(r)
+	case "jpg":
+		fallthrough
+	case "jpeg":
+		img, err = jpeg.Decode(r)
+	default:
+		err = errors.New("不支持" + suffix + "格式")
+	}
+	return
+}
+
+func judgeType(data []byte) string {
+	if picMap == nil {
+		picMap = make(map[string]string)
+		picMap["ffd8ffe0"] = "jpg"
+		picMap["ffd8ffe1"] = "jpg"
+		picMap["ffd8ffe8"] = "jpg"
+		picMap["89504e47"] = "png"
+	}
+	s := bytesToHexString(data[:4])
+	return picMap[s]
+}
+
+// 获取16进制
+func bytesToHexString(src []byte) string {
+	res := bytes.Buffer{}
+	if src == nil || len(src) <= 0 {
+		return ""
+	}
+	temp := make([]byte, 0)
+	i, length := 100, len(src)
+	if length < i {
+		i = length
+	}
+	for j := 0; j < i; j++ {
+		sub := src[j] & 0xFF
+		hv := hex.EncodeToString(append(temp, sub))
+		if len(hv) < 2 {
+			res.WriteString(strconv.FormatInt(int64(0), 10))
+		}
+		res.WriteString(hv)
+	}
+	return res.String()
+}
+
+//func (t *DrawTools) getHTTPFileForForCache(url string) ([]byte, error) {
+//	fileName := util.GetMd5(url)
+//	path := "./cache/"
+//	//有缓存文件直接返回本地缓存
+//	if ifSet, _ := util.PathExists(path + fileName); ifSet {
+//		f, err := os.Open(path + fileName)
+//		if err != nil {
+//			return nil, err
+//		}
+//		b, err := io.ReadAll(f)
+//		if err != nil {
+//			return nil, err
+//		}
+//		return b, nil
+//	}
+//	//没有缓存先请求数据
+//	res, err := http.Get(url)
+//	if err != nil {
+//		return nil, err
+//	}
+//	defer res.Body.Close()
+//	data, err := io.ReadAll(res.Body)
+//	if err != nil {
+//		return nil, err
+//	}
+//	//将数据写入缓存
+//	os.Create(path + fileName)
+//	err = os.WriteFile(path+fileName, data, 0644)
+//	if err != nil {
+//		return nil, errors.New("创建缓存失败")
+//	}
+//	return data, nil
+//}
