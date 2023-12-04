@@ -287,6 +287,22 @@ func saveConfig(data []byte) error {
 	f.Write(data)
 	return nil
 }
+func saveConfigStruct(data ConfigPut) error {
+	// 保存配置
+	configPutData = data
+	os.Remove(pluginConfig.Path + "plugin.config")
+	f, err := os.OpenFile(pluginConfig.Path+"plugin.config", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		f, err = os.Create(pluginConfig.Path + "plugin.config")
+		if err != nil {
+			return err
+		}
+	}
+	defer f.Close()
+	b, _ := json.Marshal(data)
+	f.Write(b)
+	return nil
+}
 
 //export PluginSaveConfig
 func PluginSaveConfig(data *C.char) bool {
@@ -350,8 +366,10 @@ func PluginTimedEvent() bool {
 
 //export PluginSubmit
 func PluginSubmit(data *C.char) bool {
-	config := C.GoString(data)
-	err := saveConfig([]byte(config))
+	rdata := C.GoString(data)
+	var subData SubmitData
+	json.Unmarshal([]byte(rdata), &subData)
+	err := saveConfigStruct(subData.ConfigPut)
 	if err != nil {
 		lastError = err
 		return false
