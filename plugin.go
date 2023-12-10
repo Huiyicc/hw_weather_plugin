@@ -369,18 +369,22 @@ func PluginSubmit(data *C.char) bool {
 	rdata := C.GoString(data)
 	var subData SubmitData
 	json.Unmarshal([]byte(rdata), &subData)
-	err := saveConfigStruct(subData.ConfigPut)
-	if err != nil {
-		lastError = err
-		return false
+	if subData.EventBind == "weather_update" {
+		err := saveConfigStruct(subData.ConfigPut)
+		if err != nil {
+			lastError = err
+			return false
+		}
+		imgData, err := GetWeatherImage()
+		if err != nil {
+			lastError = err
+			return false
+		}
+		CallEinkFullUpdateImageFunc(imgData)
+		return true
 	}
-	imgData, err := GetWeatherImage()
-	if err != nil {
-		lastError = err
-		return false
-	}
-	CallEinkFullUpdateImageFunc(imgData)
-	return true
+	lastError = errors.New("未知事件")
+	return false
 }
 
 //export PluginGetLastError
