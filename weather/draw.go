@@ -17,7 +17,7 @@ var (
 	humidityPNG []byte
 )
 
-func DerawImage(cityID, host, weatherKey string) ([]byte, error) {
+func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string) ([]byte, error) {
 	//获取一言
 	oneSentence, err := api.GetOneSentence()
 	if err != nil {
@@ -123,10 +123,16 @@ func DerawImage(cityID, host, weatherKey string) ([]byte, error) {
 		}
 		draw.DrawText(s, 12, color, 10+(i*8+(8*i)), 182)
 	}
-	// 今日待办
-	draw.DrawText("今日待办", 12.5, Draw.GetRGBA(0, 0, 0, 255), 38, 202)
+
+	draw.DrawTextCenter(addiTitle, 12.5, Draw.GetRGBA(0, 0, 0, 255), 127, 202)
 	draw.DrawBox(3, 217, 121, 1, Draw.GetRGBA(0, 0, 0, 255))
+	top := 219
+	addiContents := strings.Split(addiContent, "\n")
+	for _, s := range addiContents {
+		draw.DrawTextCenter(s, 12.5, Draw.GetRGBA(0, 0, 0, 255), 127, top)
+		top += 15
+	}
 	// 预留代办内容
-	draw.DrawText("无", 12.5, Draw.GetRGBA(0, 0, 0, 255), 57, 247)
+	//draw.DrawText("无", 12.5, Draw.GetRGBA(0, 0, 0, 255), 57, 247)
 	return draw.SaveBytes()
 }

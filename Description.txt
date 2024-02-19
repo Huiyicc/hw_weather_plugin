@@ -1,4 +1,5 @@
 墨水屏的生活插件,包含天气,一言,日历,待办等功能
 插件会在每天3点,8点,13点,19点期间更新墨水屏推送
 开源地址:https://github.com/Huiyicc/hw_weather_plugin
-城市代码查询:http://openapi.hyiy.top/city
+城市代码查询:https://blog.hyiy.top/archives/5/
+城市代码网页有大量数据渲染,打开较慢,需要等待一段时间.

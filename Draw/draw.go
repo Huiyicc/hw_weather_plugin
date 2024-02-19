@@ -94,6 +94,20 @@ func (cvs *Canvas) DrawText(str string, size float64, rgba color.Color, left, to
 	cvs.ctx.Fill()
 }
 
+// DrawText 画文字居中
+func (cvs *Canvas) DrawTextCenter(str string, size float64, rgba color.Color, width, top int) {
+	face := truetype.NewFace(rFont, &truetype.Options{Size: size})
+	w := 0
+	for _, val := range str {
+		l, _ := face.GlyphAdvance(rune(val))
+		w += int(l/100) + 2
+	}
+	cvs.ctx.SetFontFace(face)
+	cvs.ctx.SetColor(rgba)
+	cvs.ctx.DrawStringAnchored(str, float64((width-w)/2), float64(top), 0, 1)
+	cvs.ctx.Fill()
+}
+
 // DrawTextVertical 画文字, 从上到下
 //
 // str: 文字

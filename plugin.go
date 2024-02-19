@@ -27,6 +27,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hw_weather_plugin/utils/utils"
 	"hw_weather_plugin/weather"
 	"io"
@@ -66,12 +67,15 @@ type Widget struct {
 	Text   string  `json:"text"`
 	Layout float64 `json:"layout"`
 	Bind   string  `json:"bind"`
+	Height float64 `json:"height"`
 }
 
 type ConfigPut struct {
 	CityID             string `json:"city_id"`
 	WeatherKey         string `json:"weather_key"`
 	WeatherApiBusiness bool   `json:"weather_api_business"`
+	AddiTitle          string `json:"addi_title"`
+	AddiContent        string `json:"addi_content"`
 }
 
 type SubmitData struct {
@@ -186,7 +190,7 @@ func PluginConfigUI() *C.char {
 					Type:   "input",
 					Bind:   "weather_key",
 					Text:   configPutData.WeatherKey,
-					Layout: 8,
+					Layout: 7,
 				},
 			},
 			{
@@ -222,7 +226,7 @@ func PluginConfigUI() *C.char {
 					Type:   "input",
 					Bind:   "city_id",
 					Text:   configPutData.CityID,
-					Layout: 8,
+					Layout: 7,
 				},
 			},
 			// ------------------------
@@ -236,13 +240,28 @@ func PluginConfigUI() *C.char {
 			{
 				{
 					Type:   "text",
-					Text:   "待办",
+					Text:   "标题",
 					Layout: 2,
 				},
 				{
+					Type:   "input",
+					Text:   utils.Ifs(configPutData.AddiTitle == "", "待办", configPutData.AddiTitle),
+					Bind:   "addi_title",
+					Layout: 7,
+				},
+			},
+			{
+				{
 					Type:   "text",
-					Text:   "未完成",
-					Layout: 8,
+					Text:   "内容",
+					Layout: 2,
+				},
+				{
+					Type:   "input_ml",
+					Bind:   "addi_content",
+					Text:   utils.Ifs(configPutData.AddiContent == "", "暂无", configPutData.AddiContent),
+					Height: 100,
+					Layout: 7,
 				},
 			},
 			// ------------------------
@@ -326,7 +345,7 @@ func GetWeatherImage() ([]byte, error) {
 	}
 	if configPutData.WeatherKey == "" {
 		// 共享接口
-		data, err := weather.DerawImage(configPutData.CityID, "", "")
+		data, err := weather.DerawImage(configPutData.CityID, "", "", configPutData.AddiTitle, configPutData.AddiContent)
 		if err != nil {
 			lastError = err
 			return nil, err
@@ -338,7 +357,7 @@ func GetWeatherImage() ([]byte, error) {
 			utils.Ifs(configPutData.WeatherApiBusiness,
 				"https://api.qweather.com/v7",
 				"https://devapi.qweather.com/v7"),
-			configPutData.WeatherKey)
+			configPutData.WeatherKey, configPutData.AddiTitle, configPutData.AddiContent)
 		if err != nil {
 			lastError = err
 			return nil, err
@@ -355,6 +374,7 @@ func PluginTimedEvent() bool {
 		return true
 	}
 	data, err := GetWeatherImage()
+	CallPluginLogFunc(fmt.Sprintf("插件定时事件"))
 	if err != nil {
 		lastError = err
 		return false
@@ -369,6 +389,7 @@ func PluginSubmit(data *C.char) bool {
 	rdata := C.GoString(data)
 	var subData SubmitData
 	json.Unmarshal([]byte(rdata), &subData)
+	CallPluginLogFunc(fmt.Sprintf("插件提交事件:%s", string(rdata)))
 	if subData.EventBind == "weather_update" {
 		err := saveConfigStruct(subData.ConfigPut)
 		if err != nil {
