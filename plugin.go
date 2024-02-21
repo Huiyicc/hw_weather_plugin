@@ -74,6 +74,7 @@ type ConfigPut struct {
 	CityID             string `json:"city_id"`
 	WeatherKey         string `json:"weather_key"`
 	WeatherApiBusiness bool   `json:"weather_api_business"`
+	EnableFahrenheit   bool   `json:"enable_fahrenheit"`
 	AddiTitle          string `json:"addi_title"`
 	AddiContent        string `json:"addi_content"`
 }
@@ -218,6 +219,22 @@ func PluginConfigUI() *C.char {
 			},
 			{
 				{
+					Type:   "checkbox",
+					Text:   "启用华氏度",
+					Bind:   "enable_fahrenheit",
+					Layout: 3,
+				},
+			},
+			// ------------------------
+			{
+				{
+					Type:   "divider",
+					Text:   "",
+					Layout: 10,
+				},
+			},
+			{
+				{
 					Type:   "text",
 					Text:   "城市ID",
 					Layout: 2,
@@ -345,7 +362,14 @@ func GetWeatherImage() ([]byte, error) {
 	}
 	if configPutData.WeatherKey == "" {
 		// 共享接口
-		data, err := weather.DerawImage(configPutData.CityID, "", "", configPutData.AddiTitle, configPutData.AddiContent)
+		data, err := weather.DerawImage(
+			configPutData.CityID,
+			"",
+			"",
+			configPutData.AddiTitle,
+			configPutData.AddiContent,
+			configPutData.EnableFahrenheit,
+		)
 		if err != nil {
 			lastError = err
 			return nil, err
@@ -353,11 +377,18 @@ func GetWeatherImage() ([]byte, error) {
 		return data, nil
 	} else {
 		// 付费接口
-		data, err := weather.DerawImage(configPutData.CityID,
-			utils.Ifs(configPutData.WeatherApiBusiness,
+		data, err := weather.DerawImage(
+			configPutData.CityID,
+			utils.Ifs(
+				configPutData.WeatherApiBusiness,
 				"https://api.qweather.com/v7",
-				"https://devapi.qweather.com/v7"),
-			configPutData.WeatherKey, configPutData.AddiTitle, configPutData.AddiContent)
+				"https://devapi.qweather.com/v7",
+			),
+			configPutData.WeatherKey,
+			configPutData.AddiTitle,
+			configPutData.AddiContent,
+			configPutData.EnableFahrenheit,
+		)
 		if err != nil {
 			lastError = err
 			return nil, err
