@@ -7,6 +7,7 @@ import (
 	"hw_weather_plugin/Draw"
 	"hw_weather_plugin/api"
 	stringsPkg "hw_weather_plugin/utils/strings"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,15 +20,21 @@ var (
 
 func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string, enableFahrenheit bool) ([]byte, error) {
 	//获取一言
-	oneSentence, err := api.GetOneSentence()
+	oneSentence, err := api.GetOneSentenceLocal()
 	if err != nil {
 		return nil, err
 	}
 	// 处理一言
-	sentences := strings.Split(oneSentence.Hitokoto, "，")
-	if len(sentences) != 2 {
+	re := regexp.MustCompile("[，。？！；]")
+	runeSentence := []rune(oneSentence.Hitokoto)
+	// 检测字符串最后一位是否是标点符号
+	if re.MatchString(oneSentence.Hitokoto) {
+		runeSentence = runeSentence[:len(runeSentence)-1]
+	}
+	if stringsPkg.GetStrLen(string(runeSentence)) != 15 {
 		return nil, errors.New("一言接口获取失败,数据不符合要求：\n" + oneSentence.Hitokoto)
 	}
+
 	// 获取天气
 	var weatherInfo api.WeatherResp
 	if weatherKey == "" {
@@ -51,10 +58,10 @@ func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string, enableF
 		return nil, err
 	}
 	// 一言
-	draw.DrawTextVertical(sentences[0], 16, Draw.GetRGBA(0, 0, 0, 255), 108, 0)
-	sentences[1] = strings.ReplaceAll(sentences[1], "。", "")
-	sentences[1] = strings.ReplaceAll(sentences[1], "？", "")
-	draw.DrawTextVertical(sentences[1], 16, Draw.GetRGBA(0, 0, 0, 255), 90, 29)
+	sentencePart1 := string(runeSentence[:7])
+	sentencePart2 := string(runeSentence[len(runeSentence)-7:])
+	draw.DrawTextVertical(sentencePart1, 16, Draw.GetRGBA(0, 0, 0, 255), 108, 0)
+	draw.DrawTextVertical(sentencePart2, 16, Draw.GetRGBA(0, 0, 0, 255), 90, 29)
 	draw.DrawBox(88, 23, 1, 130, Draw.GetRGBA(0, 0, 0, 255))
 	// 天气
 

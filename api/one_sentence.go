@@ -1,8 +1,10 @@
 package api
 
 import (
+	_ "embed"
 	"encoding/json"
 	"io"
+	"math/rand"
 	"net/http"
 )
 
@@ -21,6 +23,11 @@ type OneSentenceData struct {
 	Length     int    `json:"length"`
 }
 
+var (
+	//go:embed hitokoto.json
+	hitokotoRaw []byte
+)
+
 // GetOneSentence 用于获取一言
 func GetOneSentence() (OneSentenceData, error) {
 	ret := OneSentenceData{}
@@ -35,4 +42,20 @@ func GetOneSentence() (OneSentenceData, error) {
 	}
 	err = json.Unmarshal(respData, &ret)
 	return ret, err
+}
+
+func GetOneSentenceLocal() (OneSentenceData, error) {
+	var hitokotos []OneSentenceData
+
+	// 解析 JSON 数据到 hitokotos 切片
+	err := json.Unmarshal(hitokotoRaw, &hitokotos)
+	if err != nil {
+		return OneSentenceData{}, err
+	}
+
+	// 生成一个随机索引
+	index := rand.Intn(len(hitokotos))
+
+	// 返回随机选中的 OneSentenceData 实例
+	return hitokotos[index], nil
 }
