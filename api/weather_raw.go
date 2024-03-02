@@ -132,8 +132,8 @@ func GetCurrentWeather(cityID, host, key string) (ret CityWeatherInfo, raw []byt
 			return ret, nil, err
 		}
 	}
-	if _, ifSet := cityDatas.DatasList[cityID]; !ifSet {
-		return ret, nil, errors.New("城市ID不存在")
+	if _, ifSet := cityDatas.DatasList[cityID]; !ifSet && len(key) == 0 {
+		return ret, nil, errors.New("城市ID不存在\n请注意,国际城市ID需要使用开发或付费接口")
 	}
 	url := fmt.Sprintf("%s/weather/now?location=%s&key=%s",
 		host,
@@ -266,8 +266,8 @@ func GetWeatherIndex(cityID, host, key string) (ret CityWeatherIndexInfo, raw []
 			return ret, nil, err
 		}
 	}
-	if _, ifSet := cityDatas.DatasList[cityID]; !ifSet {
-		return ret, nil, errors.New("城市ID不存在")
+	if _, ifSet := cityDatas.DatasList[cityID]; !ifSet && len(key) == 0 {
+		return ret, nil, errors.New("城市ID不存在\n请注意,国际城市ID需要使用开发或付费接口")
 	}
 	url := fmt.Sprintf("%s/indices/1d?type=0&location=%s&key=%s",
 		host,

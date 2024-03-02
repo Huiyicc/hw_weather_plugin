@@ -7,6 +7,7 @@ import (
 	"hw_weather_plugin/Draw"
 	"hw_weather_plugin/api"
 	stringsPkg "hw_weather_plugin/utils/strings"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,17 +18,23 @@ var (
 	humidityPNG []byte
 )
 
-func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string) ([]byte, error) {
+func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string, enableFahrenheit bool) ([]byte, error) {
 	//获取一言
-	oneSentence, err := api.GetOneSentence()
+	oneSentence, err := api.GetOneSentenceLocal()
 	if err != nil {
 		return nil, err
 	}
 	// 处理一言
-	sentences := strings.Split(oneSentence.Hitokoto, "，")
-	if len(sentences) != 2 {
+	re := regexp.MustCompile("[，。？！；]")
+	runeSentence := []rune(oneSentence.Hitokoto)
+	// 检测字符串最后一位是否是标点符号
+	if re.MatchString(oneSentence.Hitokoto) {
+		runeSentence = runeSentence[:len(runeSentence)-1]
+	}
+	if stringsPkg.GetStrLen(string(runeSentence)) != 15 {
 		return nil, errors.New("一言接口获取失败,数据不符合要求：\n" + oneSentence.Hitokoto)
 	}
+
 	// 获取天气
 	var weatherInfo api.WeatherResp
 	if weatherKey == "" {
@@ -51,10 +58,10 @@ func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string) ([]byte
 		return nil, err
 	}
 	// 一言
-	draw.DrawTextVertical(sentences[0], 16, Draw.GetRGBA(0, 0, 0, 255), 108, 0)
-	sentences[1] = strings.ReplaceAll(sentences[1], "。", "")
-	sentences[1] = strings.ReplaceAll(sentences[1], "？", "")
-	draw.DrawTextVertical(sentences[1], 16, Draw.GetRGBA(0, 0, 0, 255), 90, 29)
+	sentencePart1 := string(runeSentence[:7])
+	sentencePart2 := string(runeSentence[len(runeSentence)-7:])
+	draw.DrawTextVertical(sentencePart1, 16, Draw.GetRGBA(0, 0, 0, 255), 108, 0)
+	draw.DrawTextVertical(sentencePart2, 16, Draw.GetRGBA(0, 0, 0, 255), 90, 29)
 	draw.DrawBox(88, 23, 1, 130, Draw.GetRGBA(0, 0, 0, 255))
 	// 天气
 
@@ -66,15 +73,43 @@ func DerawImage(cityID, host, weatherKey, addiTitle, addiContent string) ([]byte
 
 	// 天气图标
 	draw.DrawWeatherIcon(weatherInfo.WeatherStatus.Icon, 48, Draw.GetRGBA(0, 0, 0, 255), 19, 32)
-	// 温度
-	draw.DrawText(weatherInfo.WeatherStatus.Temp+"°C", 25, Draw.GetRGBA(0, 0, 0, 255), 19, 82)
 
-	// 空气质量
-	draw.DrawText("空气质量", 12.5, Draw.GetRGBA(0, 0, 0, 255), 5, 116)
-	// 矩形背景宽度无字6,每一个字符加12,x原始68
-	tmpInt = stringsPkg.GetStrLen(weatherInfo.WeatherIndexs.Air.Category)
-	draw.DrawRoundedBox(68-(float64(tmpInt)*12/2), 116, 6+(float64(tmpInt)*12), 15, 3, Draw.GetRGBA(0, 0, 0, 255))
-	draw.DrawText(weatherInfo.WeatherIndexs.Air.Category, 12, Draw.GetRGBA(255, 255, 255, 255), 70-(tmpInt*12/2), 116)
+	// 温度
+	temp, _ := strconv.ParseFloat(weatherInfo.WeatherStatus.Temp, 64)
+
+	// 默认为摄氏度显示
+	tempStr := fmt.Sprintf("%.0f°C", temp)
+
+	if enableFahrenheit {
+		// 转换为华氏度
+		temp = temp*9/5 + 32
+		tempStr = fmt.Sprintf("%.0f°F", temp)
+	}
+
+	draw.DrawText(tempStr, 25, Draw.GetRGBA(0, 0, 0, 255), 19, 82)
+
+	// 小组件
+	if weatherInfo.WeatherIndexs.Air.Category == "" {
+		// 风力等级
+		draw.DrawText("风力等级", 12.5, Draw.GetRGBA(0, 0, 0, 255), 10, 116)
+
+		windScale := weatherInfo.WeatherStatus.WindScale
+		if len(windScale) == 1 {
+			windScale = "0" + windScale // 如果是一位数，前面加0
+		}
+
+		tmpInt = len(windScale)
+		// 矩形背景宽度无字6,每一个字符加6,x原始73
+		draw.DrawRoundedBox(73-(float64(tmpInt)*12/2), 116, 6+(float64(tmpInt)*6), 15, 3, Draw.GetRGBA(0, 0, 0, 255))
+		draw.DrawText(windScale, 12, Draw.GetRGBA(255, 255, 255, 255), 75-(tmpInt*12/2), 116)
+	} else {
+		// 空气质量
+		draw.DrawText("空气质量", 12.5, Draw.GetRGBA(0, 0, 0, 255), 5, 116)
+		// 矩形背景宽度无字6,每一个字符加12,x原始68
+		tmpInt = stringsPkg.GetStrLen(weatherInfo.WeatherIndexs.Air.Category)
+		draw.DrawRoundedBox(68-(float64(tmpInt)*12/2), 116, 6+(float64(tmpInt)*12), 15, 3, Draw.GetRGBA(0, 0, 0, 255))
+		draw.DrawText(weatherInfo.WeatherIndexs.Air.Category, 12, Draw.GetRGBA(255, 255, 255, 255), 70-(tmpInt*12/2), 116)
+	}
 
 	// 湿度
 	draw.DrawImageData(humidityPNG, 7, 132)
